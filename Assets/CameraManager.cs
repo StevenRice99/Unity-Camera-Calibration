@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -10,6 +12,9 @@ using Debug = UnityEngine.Debug;
 #if UNITY_EDITOR
 using NaughtyAttributes;
 using UnityEditor;
+#elif UNITY_WEBGL
+using System.IO.Compression;
+using System.Runtime.InteropServices;
 #endif
 /// <summary>
 /// Manage a camera to extract information.
@@ -22,6 +27,13 @@ using UnityEditor;
 #endif
 public class CameraManager : MonoBehaviour
 {
+#if !UNITY_EDITOR && UNITY_WEBGL
+    /// <summary>
+    /// For WebGL builds, this function is defined in "Assets/Plugins/WebGL/FileDownloader.jslib" which takes a byte array and prompts the user to download it as a file.
+    /// </summary>
+    [DllImport("__Internal")]
+    private static extern void DownloadFile(string fileName, byte[] array, int size);
+#endif
     /// <summary>
     /// The width of the camera in pixels.
     /// </summary>
@@ -419,7 +431,7 @@ public class CameraManager : MonoBehaviour
 #endif
         ConfigureCamera();
         
-        // Nothing to do if the screen size has changed.
+        // Nothing to do if the screen size has not changed.
         if (Screen.width != _previousWidth || Screen.height != _previousHeight)
         {
             Scale();
@@ -526,7 +538,7 @@ public class CameraManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Capture screenshots from all target camera positions with the properties of this camera.
+    /// Capture screenshots from all target camera positions with the properties of this camera. For WebGL builds, this will generate a single ZIP file and prompt for download. For other builds, it will save files to disk and attempt to open the folder.
     /// </summary>
 #if UNITY_EDITOR
     [Button("Generate Data")]
@@ -547,6 +559,7 @@ public class CameraManager : MonoBehaviour
             return;
         }
 #else
+        GetCamera();
         Scene scene = SceneManager.GetActiveScene();
 #endif
         // Ensure the camera is configured.
@@ -561,187 +574,201 @@ public class CameraManager : MonoBehaviour
         Vector2 lensShift = cam.lensShift;
         
         // Store intrinsic values.
-        double focalLengthX = focalLength * ((double) width / sensorSize.x);
-        double focalLengthY = focalLength * ((double) height / sensorSize.y);
+        double focalLengthX = focalLength * (width / sensorSize.x);
+        double focalLengthY = focalLength * (height / sensorSize.y);
         double principalPointX = (0.5 + lensShift.x) * width;
         double principalPointY = (0.5 + lensShift.y) * height;
         
-        // Get the folder to save to.
+        // The root path for files inside the zip or on the filesystem.
+        string dataRootPath = Path.Combine(scene.name, name);
+        
+        // This action will contain the core logic for generating file data.
+        // It's defined here so it can be used for both WebGL (in-memory) and Standalone (disk) builds.
+        void GenerateFileData(Action<string, byte[]> writeFileAction)
+        {
+            // Write camera intrinsic values.
+            writeFileAction(Path.Combine(dataRootPath, "Focal-Length-X.txt"), Encoding.UTF8.GetBytes(focalLengthX.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction(Path.Combine(dataRootPath, "Focal-Length-Y.txt"), Encoding.UTF8.GetBytes(focalLengthY.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction(Path.Combine(dataRootPath, "Principal-Point-X.txt"), Encoding.UTF8.GetBytes(principalPointX.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction(Path.Combine(dataRootPath, "Principal-Point-Y.txt"), Encoding.UTF8.GetBytes(principalPointY.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction(Path.Combine(dataRootPath, "Intrinsic-Matrix.txt"), Encoding.UTF8.GetBytes($"{focalLengthX} {0} {principalPointX}\n{0} {focalLengthY} {principalPointY}\n0 0 1"));
+            
+            // Handle creating the offsets for the left and right cameras.
+            float half = Mathf.Max(offset, float.Epsilon * 2) / 2;
+            float[] offsets = { -half, half };
+            
+            // Cache the original position so we can restore it after
+            Transform t = transform;
+            Vector3 p = t.position;
+            
+            // Cache the raycast.
+            RaycastHit[] hit = new RaycastHit[1];
+            
+            // Perform for the left and right camera, if we have both.
+            for (int i = 0; i < 2; i++)
+            {
+                // Apply the offset.
+                t.position = new(p.x + offsets[i], p.y, p.z);
+                
+                // Store the original camera rectangle and set it to full screen for the screenshot.
+                Rect originalRect = cam.rect;
+                cam.rect = new(0, 0, 1, 1);
+                
+                // Create a render texture to render the camera's view into.
+                RenderTexture renderTexture = new(width, height, 24);
+                cam.targetTexture = renderTexture;
+                
+                // Create a texture to hold the screenshot.
+                Texture2D screenshot = new(width, height, TextureFormat.RGB24, false);
+                
+                // Render the camera's view.
+                cam.Render();
+                
+                // If this is the left camera, get calibration data.
+                bool left = i == 0;
+                if (left)
+                {
+                    // Store all hit coordinates.
+                    List<Coordinate> coordinates = new();
+                    for (int y = 0; y < height; y++)
+                    {
+                        for (int x = 0; x < width; x++)
+                        {
+                            Ray ray = cam.ScreenPointToRay(new(x, y, 0));
+                            if (Physics.RaycastNonAlloc(ray, hit) > 0)
+                            {
+                                coordinates.Add(new(t.InverseTransformPoint(hit[0].point), new(x, y)));
+                            }
+                        }
+                    }
+                    
+                    StringBuilder world = new();
+                    StringBuilder pixels = new();
+                    for (int j = 0; j < coordinates.Count; j++)
+                    {
+                        if (j > 0)
+                        {
+                            world.Append("\n");
+                            pixels.Append("\n");
+                        }
+                        
+                        world.Append(coordinates[j].WorldString());
+                        pixels.Append(coordinates[j].PixelsString());
+                    }
+                    
+                    // Save them.
+                    writeFileAction(Path.Combine(dataRootPath, "Calibration-3D.txt"), Encoding.UTF8.GetBytes(world.ToString()));
+                    writeFileAction(Path.Combine(dataRootPath, "Calibration-2D.txt"), Encoding.UTF8.GetBytes(pixels.ToString()));
+                }
+                
+                RenderTexture.active = renderTexture;
+                screenshot.ReadPixels(new(0, 0, width, height), 0, 0);
+                screenshot.Apply();
+                
+                cam.targetTexture = null;
+                cam.rect = originalRect;
+                RenderTexture.active = null;
+
+#if UNITY_EDITOR
+                if (Application.isPlaying)
+                {
+                    Destroy(renderTexture);
+                }
+                else
+                {
+                    DestroyImmediate(renderTexture);
+                }
+#else
+                Destroy(renderTexture);
+#endif
+                byte[] bytes = screenshot.EncodeToPNG();
+#if UNITY_EDITOR
+                if (Application.isPlaying)
+                {
+                    Destroy(screenshot);
+                }
+                else
+                {
+                    DestroyImmediate(screenshot);
+                }
+#else
+                Destroy(screenshot);
+#endif
+                string side = left ? "Left" : "Right";
+                writeFileAction(Path.Combine(dataRootPath, $"{side}.png"), bytes);
+            }
+            
+            // Restore the original position.
+            t.position = p;
+        }
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // Create a zip file in memory and trigger a download.
+        using (MemoryStream memoryStream = new())
+        {
+            // Use a ZipArchive to write files into the memory stream.
+            ZipArchive archive = new(memoryStream, ZipArchiveMode.Create, true);
+            // The writeFileAction for WebGL creates entries in the zip archive.
+            void AddFileToArchive(string filePath, byte[] fileData)
+            {
+                // Ensure forward slashes for zip entry paths.
+                ZipArchiveEntry entry = archive.CreateEntry(filePath.Replace('\\', '/'));
+                using Stream entryStream = entry.Open();
+                entryStream.Write(fileData, 0, fileData.Length);
+            }
+            
+            GenerateFileData(AddFileToArchive);
+            
+            // Manually dispose this in the outer scope to ensure there are no issues.
+            archive.Dispose();
+            
+            // Download the generated zip file.
+            DownloadFile($"{scene.name}-{name}.zip", memoryStream.ToArray(), (int)memoryStream.Length);
+        }
+#else
+        // Save files directly to the disk.
         string root = Application.dataPath;
 #if UNITY_EDITOR
         root = root.Replace("/Assets", string.Empty);
 #endif
         root = Path.Combine(root, "Camera-Data");
-        if (!Directory.Exists(root))
+        
+        // The writeFileAction for Standalone/Editor saves files to disk.
+        void WriteBytesToFile([NotNull] string filePath, [NotNull] byte[] fileData)
         {
-            Directory.CreateDirectory(root);
+            string finalPath = Path.Combine(root, filePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(finalPath) ?? string.Empty);
+            File.WriteAllBytes(finalPath, fileData);
         }
         
-        root = Path.Combine(root, scene.name);
-        if (!Directory.Exists(root))
-        {
-            Directory.CreateDirectory(root);
-        }
-        
-        root = Path.Combine(root, name);
-        if (!Directory.Exists(root))
-        {
-            Directory.CreateDirectory(root);
-        }
-        
-        // Write camera intrinsic values.
-        File.WriteAllText(Path.Combine(root, "Focal-Length-X.txt"), focalLengthX.ToString(CultureInfo.InvariantCulture));
-        File.WriteAllText(Path.Combine(root, "Focal-Length-Y.txt"), focalLengthY.ToString(CultureInfo.InvariantCulture));
-        File.WriteAllText(Path.Combine(root, "Principal-Point-X.txt"), principalPointX.ToString(CultureInfo.InvariantCulture));
-        File.WriteAllText(Path.Combine(root, "Principal-Point-Y.txt"), principalPointY.ToString(CultureInfo.InvariantCulture));
-        File.WriteAllText(Path.Combine(root, "Intrinsic-Matrix.txt"), $"{focalLengthX} {0} {principalPointX}\n{0} {focalLengthY} {principalPointY}\n0 0 1");
-        
-        // Handle creating the offsets for the left and right cameras.
-        float half = Mathf.Max(offset, float.Epsilon * 2) / 2;
-        float[] offsets = { -half, half };
-        
-        // Cache the original position so we can restore it after
-        Transform t = transform;
-        Vector3 p = t.position;
-        
-        // Cache the raycast.
-        RaycastHit[] hit = new RaycastHit[1];
-        
-        // Perform for the left and right camera, if we have both.
-        for (int i = 0; i < 2; i++)
-        {
-            // Apply the offset.
-            t.position = new(p.x + offsets[i], p.y, p.z);
-            
-            // Store the original camera rectangle and set it to full screen for the screenshot.
-            Rect originalRect = cam.rect;
-            cam.rect = new(0, 0, 1, 1);
-            
-            // Create a render texture to render the camera's view into.
-            RenderTexture renderTexture = new(width, height, 24);
-            cam.targetTexture = renderTexture;
-            
-            // Create a texture to hold the screenshot.
-            Texture2D screenshot = new(width, height, TextureFormat.RGB24, false);
-            
-            // Render the camera's view.
-            cam.Render();
-            
-            // If this is the left camera, get calibration data.
-            bool left = i == 0;
-            if (left)
-            {
-                // Store all hit coordinates.
-                List<Coordinate> coordinates = new();
-                for (int y = 0; y < height; y++)
-                {
-                    for (int x = 0; x < width; x++)
-                    {
-                        // Create a ray from the camera going through the current pixel.
-                        Ray ray = cam.ScreenPointToRay(new(x, y, 0));
-                        
-                        // Perform the raycast.
-                        if (Physics.RaycastNonAlloc(ray, hit) > 0)
-                        {
-                            // If the ray hits a collider, create a new coordinate pair and add it to our list.
-                            coordinates.Add(new(t.InverseTransformPoint(hit[0].point), new(x, y)));
-                        }
-                    }
-                }
-                
-                // Get the formatted strings.
-                StringBuilder world = new();
-                StringBuilder pixels = new();
-                for (int j = 0; j < coordinates.Count; j++)
-                {
-                    if (j > 0)
-                    {
-                        world.Append("\n");
-                        pixels.Append("\n");
-                    }
-                    
-                    world.Append(coordinates[j].WorldString());
-                    pixels.Append(coordinates[j].PixelsString());
-                }
-                
-                // Save them.
-                File.WriteAllText(Path.Combine(root, "Calibration-3D.txt"), world.ToString());
-                File.WriteAllText(Path.Combine(root, "Calibration-2D.txt"), pixels.ToString());
-            }
-            
-            // Set the active render texture and read the pixels.
-            RenderTexture.active = renderTexture;
-            screenshot.ReadPixels(new(0, 0, width, height), 0, 0);
-            screenshot.Apply();
-            
-            // Clean up by resetting the camera's target texture and restoring the original rectangle.
-            cam.targetTexture = null;
-            
-            // Restore the original camera rectangle.
-            cam.rect = originalRect;
-            RenderTexture.active = null;
+        GenerateFileData(WriteBytesToFile);
+        string finalRoot = Path.Combine(root, dataRootPath).Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
 #if UNITY_EDITOR
-            if (Application.isPlaying)
-            {
-                Destroy(renderTexture);
-            }
-            else
-            {
-                DestroyImmediate(renderTexture);
-            }
-#else
-            Destroy(renderTexture);
-#endif
-            // Encode the texture to PNG format.
-            byte[] bytes = screenshot.EncodeToPNG();
-            
-            // Clean up the screenshot texture.
-#if UNITY_EDITOR
-            if (Application.isPlaying)
-            {
-                Destroy(screenshot);
-            }
-            else
-            {
-                DestroyImmediate(screenshot);
-            }
-#else
-            Destroy(screenshot);
-#endif
-            // Save the image.
-            string side = left ? "Left" : "Right";
-            File.WriteAllBytes(Path.Combine(root, $"{side}.png"), bytes);
-        }
-        
-        // Restore the original position.
-        t.position = p;
-        
-        root = root.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
-#if UNITY_EDITOR
-        Debug.Log($"Data generated to \"{root}\".", this);
+        Debug.Log($"Data generated to \"{finalRoot}\".", this);
         EditorUtility.ClearDirty(gameObject);
 #endif
+        // Open the directory in the file explorer.
         switch (Application.platform)
         {
 #if UNITY_EDITOR
             case RuntimePlatform.WindowsEditor:
 #endif
             case RuntimePlatform.WindowsPlayer:
-                Process.Start(root);
+                Process.Start(finalRoot);
                 return;
 #if UNITY_EDITOR
             case RuntimePlatform.OSXEditor:
 #endif
             case RuntimePlatform.OSXPlayer:
-                Process.Start("open", root);
+                Process.Start("open", finalRoot);
                 return;
 #if UNITY_EDITOR
             case RuntimePlatform.LinuxEditor:
 #endif
             case RuntimePlatform.LinuxPlayer:
-                Process.Start("xdg-open", root);
+                Process.Start("xdg-open", finalRoot);
                 return;
         }
+#endif
     }
 #if !UNITY_EDITOR
     /// <summary>
