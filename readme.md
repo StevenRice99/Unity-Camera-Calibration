@@ -13,6 +13,7 @@ First, install [Unity](https://unity.com "Unity"). Then, either clone this proje
 
 1. Install [NaughtyAttributes](https://github.com/dbrizov/NaughtyAttributes "NaughtyAttributes") to your [Unity](https://unity.com "Unity") project.
 2. Add the [CameraManager.cs](Assets/CameraManager.cs "CameraManager.cs") script from this repository to your [Unity](https://unity.com "Unity") project.
+3. If you are planning to build for WebGL, in your project assets create the folder `Plugins/WebGL` and copy the [FileDownloader.jslib](Assets/Plugins/WebGL/FileDownloader.jslib "FileDownloader.jslib") file to it.
 
 # Usage
 
