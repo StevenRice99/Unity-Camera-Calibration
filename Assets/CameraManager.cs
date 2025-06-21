@@ -582,20 +582,28 @@ public class CameraManager : MonoBehaviour
         double principalPointX = (0.5 + lensShift.x) * width;
         double principalPointY = (0.5 + lensShift.y) * height;
         
-        // The root path for files inside the zip or on the filesystem.
+#if UNITY_EDITOR || !UNITY_WEBGL
+        // The root path for saving.
         string dataRootPath = Path.Combine(scene.name, name);
-        
+#endif
         // This action will contain the core logic for generating file data.
         // It's defined here so it can be used for both WebGL (in-memory) and Standalone (disk) builds.
         void GenerateFileData(Action<string, byte[]> writeFileAction)
         {
             // Write camera intrinsic values.
+#if !UNITY_EDITOR && UNITY_WEBGL
+            writeFileAction("Focal-Length-X.txt", Encoding.UTF8.GetBytes(focalLengthX.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction("Focal-Length-Y.txt", Encoding.UTF8.GetBytes(focalLengthY.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction("Principal-Point-X.txt", Encoding.UTF8.GetBytes(principalPointX.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction("Principal-Point-Y.txt", Encoding.UTF8.GetBytes(principalPointY.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction("Intrinsic-Matrix.txt", Encoding.UTF8.GetBytes($"{focalLengthX} {0} {principalPointX}\n{0} {focalLengthY} {principalPointY}\n0 0 1"));
+#else
             writeFileAction(Path.Combine(dataRootPath, "Focal-Length-X.txt"), Encoding.UTF8.GetBytes(focalLengthX.ToString(CultureInfo.InvariantCulture)));
             writeFileAction(Path.Combine(dataRootPath, "Focal-Length-Y.txt"), Encoding.UTF8.GetBytes(focalLengthY.ToString(CultureInfo.InvariantCulture)));
             writeFileAction(Path.Combine(dataRootPath, "Principal-Point-X.txt"), Encoding.UTF8.GetBytes(principalPointX.ToString(CultureInfo.InvariantCulture)));
             writeFileAction(Path.Combine(dataRootPath, "Principal-Point-Y.txt"), Encoding.UTF8.GetBytes(principalPointY.ToString(CultureInfo.InvariantCulture)));
             writeFileAction(Path.Combine(dataRootPath, "Intrinsic-Matrix.txt"), Encoding.UTF8.GetBytes($"{focalLengthX} {0} {principalPointX}\n{0} {focalLengthY} {principalPointY}\n0 0 1"));
-            
+#endif
             // Handle creating the offsets for the left and right cameras.
             float half = Mathf.Max(offset, float.Epsilon * 2) / 2;
             float[] offsets = { -half, half };
@@ -660,8 +668,13 @@ public class CameraManager : MonoBehaviour
                     }
                     
                     // Save them.
+#if !UNITY_EDITOR && UNITY_WEBGL
+                    writeFileAction("Calibration-3D.txt", Encoding.UTF8.GetBytes(world.ToString()));
+                    writeFileAction("Calibration-2D.txt", Encoding.UTF8.GetBytes(pixels.ToString()));
+#else
                     writeFileAction(Path.Combine(dataRootPath, "Calibration-3D.txt"), Encoding.UTF8.GetBytes(world.ToString()));
                     writeFileAction(Path.Combine(dataRootPath, "Calibration-2D.txt"), Encoding.UTF8.GetBytes(pixels.ToString()));
+#endif
                 }
                 
                 RenderTexture.active = renderTexture;
@@ -698,13 +711,17 @@ public class CameraManager : MonoBehaviour
                 Destroy(screenshot);
 #endif
                 string side = left ? "Left" : "Right";
+#if !UNITY_EDITOR && UNITY_WEBGL
+                writeFileAction($"{side}.png", bytes);
+#else
                 writeFileAction(Path.Combine(dataRootPath, $"{side}.png"), bytes);
+#endif
             }
             
             // Restore the original position.
             t.position = p;
         }
-#if UNITY_WEBGL && !UNITY_EDITOR
+#if !UNITY_EDITOR && UNITY_WEBGL 
         // Create a zip file in memory and trigger a download.
         using (MemoryStream memoryStream = new())
         {
@@ -744,9 +761,12 @@ public class CameraManager : MonoBehaviour
         }
         
         GenerateFileData(WriteBytesToFile);
+#if !UNITY_EDITOR && UNITY_WEBGL
+        string finalRoot = root.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+#else
         string finalRoot = Path.Combine(root, dataRootPath).Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+#endif
 #if UNITY_EDITOR
-        Debug.Log($"Data generated to \"{finalRoot}\".", this);
         EditorUtility.ClearDirty(gameObject);
 #endif
         // Open the directory in the file explorer.

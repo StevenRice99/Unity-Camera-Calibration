@@ -26,8 +26,11 @@ First, install [Unity](https://unity.com "Unity"). Then, either clone this proje
 3. Click the `Generate Data` button.
     - If in the editor, this is on the [Camera Manager](Assets/CameraManager.cs "CameraManager.cs") component's inspector.
     - If in a build, this is located at the bottom of the GUI.
-    - This will cause the application to hang for a few seconds, with the higher your resolution the longer the hang.
-4. After a few seconds, in the root of your project, you can find the data in `Camera-Data/{scene}/{camera}` where `{scene}` is the name of the currently loaded scene and `{camera}` is the name of the [Camera Manager](Assets/CameraManager.cs "CameraManager.cs") component's GameObject. This will open automatically.
+    - **This will cause the application to hang for a few seconds, with the higher your resolution the longer the hang.**
+4. After a few seconds for the previous step to finish, you can find the [data](#data "Data") that was generated.
+    - In the editor or a desktop build, you can find the data in the root of your project under `Camera-Data/{scene}/{camera}` where `{scene}` is the name of the currently loaded scene and `{camera}` is the name of the [Camera Manager](Assets/CameraManager.cs "CameraManager.cs") component's GameObject.
+      - This will open automatically.
+    - If in a web build, this will download all the generated [data](#data "Data") as a ZIP file.
 
 # Data
 
