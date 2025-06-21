@@ -356,7 +356,7 @@ public class CameraManager : MonoBehaviour
             GetCamera();
 #endif
             ConfigureCamera();
-            cam.sensorSize = new(value, cam.sensorSize.y);
+            cam.lensShift = new(value, cam.lensShift.y);
         }
     }
     
@@ -389,7 +389,7 @@ public class CameraManager : MonoBehaviour
             GetCamera();
 #endif
             ConfigureCamera();
-            cam.sensorSize = new(cam.sensorSize.x, value);
+            cam.lensShift = new(cam.lensShift.x, value);
         }
     }
     
@@ -743,7 +743,147 @@ public class CameraManager : MonoBehaviour
                 return;
         }
     }
-    
+#if !UNITY_EDITOR
+    /// <summary>
+    /// OnGUI is called for rendering and handling GUI events.
+    /// </summary>
+    private void OnGUI()
+    {
+        // Width.
+        GUI.Label(new(10, 10, 100, 20), "Width");
+        string temp = GUI.TextField(new(100, 10, 100, 20), Width.ToString());
+        if (int.TryParse(temp, out int i))
+        {
+            Width = i;
+        }
+        
+        // Height.
+        GUI.Label(new(10, 30, 100, 20), "Height");
+        temp = GUI.TextField(new(100, 30, 100, 20), Height.ToString());
+        if (int.TryParse(temp, out i))
+        {
+            Height = i;
+        }
+        
+        // Offset.
+        GUI.Label(new(10, 50, 100, 20), "Offset");
+        temp = GUI.TextField(new(100, 50, 100, 20), Offset.ToString(CultureInfo.InvariantCulture));
+        if (float.TryParse(temp, out float f))
+        {
+            Offset = f;
+        }
+        
+        // Field of View.
+        GUI.Label(new(10, 70, 100, 20), "Field of View");
+        temp = GUI.TextField(new(100, 70, 100, 20), FieldOfView.ToString(CultureInfo.InvariantCulture));
+        if (float.TryParse(temp, out f))
+        {
+            FieldOfView = f;
+        }
+        
+        // Sensor Size X.
+        GUI.Label(new(10, 90, 100, 20), "Sensor Size X");
+        temp = GUI.TextField(new(100, 90, 100, 20), SensorSizeX.ToString(CultureInfo.InvariantCulture));
+        if (float.TryParse(temp, out f))
+        {
+            SensorSizeX = f;
+        }
+        
+        // Sensor Size Y.
+        GUI.Label(new(10, 110, 100, 20), "Sensor Size Y");
+        temp = GUI.TextField(new(100, 110, 100, 20), SensorSizeY.ToString(CultureInfo.InvariantCulture));
+        if (float.TryParse(temp, out f))
+        {
+            SensorSizeY = f;
+        }
+        
+        // Focal Length.
+        GUI.Label(new(10, 130, 100, 20), "Focal Length");
+        temp = GUI.TextField(new(100, 130, 100, 20), FocalLength.ToString(CultureInfo.InvariantCulture));
+        if (float.TryParse(temp, out f))
+        {
+            FocalLength = f;
+        }
+        
+        // Lens Shift X.
+        GUI.Label(new(10, 150, 100, 20), "Lens Shift X");
+        temp = GUI.TextField(new(100, 150, 100, 20), LensShiftX.ToString(CultureInfo.InvariantCulture));
+        if (float.TryParse(temp, out f))
+        {
+            LensShiftX = f;
+        }
+        
+        // Lens Shift Y.
+        GUI.Label(new(10, 170, 100, 20), "Lens Shift Y");
+        temp = GUI.TextField(new(100, 170, 100, 20), LensShiftY.ToString(CultureInfo.InvariantCulture));
+        if (float.TryParse(temp, out f))
+        {
+            LensShiftY = f;
+        }
+        
+        Transform t = transform;
+        Vector3 p = t.position;
+        
+        // Position X.
+        GUI.Label(new(10, 190, 100, 20), "Position X");
+        temp = GUI.TextField(new(100, 190, 100, 20), p.x.ToString(CultureInfo.InvariantCulture));
+        if (float.TryParse(temp, out f))
+        {
+            p = new(f, p.y, p.z);
+        }
+        
+        // Position Y.
+        GUI.Label(new(10, 210, 100, 20), "Position Y");
+        temp = GUI.TextField(new(100, 210, 100, 20), p.y.ToString(CultureInfo.InvariantCulture));
+        if (float.TryParse(temp, out f))
+        {
+            p = new(p.x, f, p.z);
+        }
+        
+        // Position Z.
+        GUI.Label(new(10, 230, 100, 20), "Position Z");
+        temp = GUI.TextField(new(100, 230, 100, 20), p.z.ToString(CultureInfo.InvariantCulture));
+        if (float.TryParse(temp, out f))
+        {
+            p = new(p.x, p.y, f);
+        }
+
+        t.position = p;
+        Vector3 r = transform.eulerAngles;
+        
+        // Rotation X.
+        GUI.Label(new(10, 250, 100, 20), "Rotation X");
+        temp = GUI.TextField(new(100, 250, 100, 20), r.x.ToString(CultureInfo.InvariantCulture));
+        if (float.TryParse(temp, out f))
+        {
+            r = new(f, r.y, r.z);
+        }
+        
+        // Rotation Y.
+        GUI.Label(new(10, 270, 100, 20), "Rotation Y");
+        temp = GUI.TextField(new(100, 270, 100, 20), r.y.ToString(CultureInfo.InvariantCulture));
+        if (float.TryParse(temp, out f))
+        {
+            r = new(r.x, f, r.z);
+        }
+        
+        // Rotation Z.
+        GUI.Label(new(10, 290, 100, 20), "Rotation Z");
+        temp = GUI.TextField(new(100, 290, 100, 20), r.y.ToString(CultureInfo.InvariantCulture));
+        if (float.TryParse(temp, out f))
+        {
+            r = new(r.x, r.y, f);
+        }
+        
+        t.eulerAngles = r;
+        
+        // Generate Data.
+        if (GUI.Button(new(10, 315, 190, 20), "Generate Data"))
+        {
+            GenerateData();
+        }
+    }
+#endif
     /// <summary>
     /// Format this as a string.
     /// </summary>

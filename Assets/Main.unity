@@ -264,7 +264,7 @@ Camera:
   m_Iso: 200
   m_ShutterSpeed: 0.005
   m_Aperture: 16
-  m_FocusDistance: 57.08
+  m_FocusDistance: 10
   m_FocalLength: 50
   m_BladeCount: 5
   m_Curvature: {x: 2, y: 11}
@@ -275,9 +275,9 @@ Camera:
   m_NormalizedViewPortRect:
     serializedVersion: 2
     x: 0
-    y: 0.18392232
+    y: 0
     width: 1
-    height: 0.63215536
+    height: 1
   near clip plane: 0.3
   far clip plane: 1000
   field of view: 26.991467
