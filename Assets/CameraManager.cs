@@ -15,6 +15,7 @@ using UnityEditor;
 #elif UNITY_WEBGL
 using System.IO.Compression;
 using System.Runtime.InteropServices;
+using UnityEngine.Scripting;
 #endif
 /// <summary>
 /// Manage a camera to extract information.
@@ -542,6 +543,8 @@ public class CameraManager : MonoBehaviour
     /// </summary>
 #if UNITY_EDITOR
     [Button("Generate Data")]
+#elif UNITY_WEBGL
+    [Preserve]
 #endif
     public void GenerateData()
     {

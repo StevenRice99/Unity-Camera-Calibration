@@ -19,9 +19,14 @@ First, install [Unity](https://unity.com "Unity"). Then, either clone this proje
 
 1. Add a [Camera Manager](Assets/CameraManager.cs "CameraManager.cs") component to a `GameObject`.
 2. Configure the properties on the [Camera Manager](Assets/CameraManager.cs "CameraManager.cs") as well as the `Camera` component itself within your scene.
-    - When editing, the camera is "between" where the left and right cameras will be, with the "Offset" field representing how far apart in meters the two screenshots will be.
-    - For example, an offset of 0.25 will mean the left screenshot will shift 0.25 meters to the left to take it, and the right screenshot will shift 0.25 meters to the right to take it.
-3. Click the `Generate Data` button on the [Camera Manager](Assets/CameraManager.cs "CameraManager.cs") component.
+    - If in the editor, modify the properties on the [Camera Manager](Assets/CameraManager.cs "CameraManager.cs") and Camera component inspectors.
+    - If in a build, use the GUI to modify properties.
+    - The camera view you see is "between" where the left and right cameras will be, with the "Offset" field representing how far apart in meters the two screenshots will be.
+        - For example, an offset of 0.25 will mean the left screenshot will shift 0.25 meters to the left to take it, and the right screenshot will shift 0.25 meters to the right to take it.
+3. Click the `Generate Data` button.
+    - If in the editor, this is on the [Camera Manager](Assets/CameraManager.cs "CameraManager.cs") component's inspector.
+    - If in a build, this is located at the bottom of the GUI.
+    - This will cause the application to hang for a few seconds, with the higher your resolution the longer the hang.
 4. After a few seconds, in the root of your project, you can find the data in `Camera-Data/{scene}/{camera}` where `{scene}` is the name of the currently loaded scene and `{camera}` is the name of the [Camera Manager](Assets/CameraManager.cs "CameraManager.cs") component's GameObject. This will open automatically.
 
 # Data
