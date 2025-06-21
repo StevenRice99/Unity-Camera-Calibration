@@ -738,7 +738,7 @@ public class CameraManager : MonoBehaviour
             
             GenerateFileData(AddFileToArchive);
             
-            // Manually dispose this in the outer scope to ensure there are no issues.
+            // Manually disposes of this in the outer scope to ensure there are no issues.
             archive.Dispose();
             
             // Download the generated zip file.
@@ -799,6 +799,9 @@ public class CameraManager : MonoBehaviour
     /// </summary>
     private void OnGUI()
     {
+        // Background.
+        GUI.Box(new(5, 5, 200, 335), string.Empty);
+        
         // Width.
         GUI.Label(new(10, 10, 100, 20), "Width");
         string temp = GUI.TextField(new(100, 10, 100, 20), Width.ToString());
