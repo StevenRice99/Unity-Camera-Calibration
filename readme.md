@@ -21,7 +21,7 @@ First, install [Unity](https://unity.com "Unity"). Then, either clone this proje
     - When editing, the camera is "between" where the left and right cameras will be, with the "Offset" field representing how far apart in meters the two screenshots will be.
     - For example, an offset of 0.25 will mean the left screenshot will shift 0.25 meters to the left to take it, and the right screenshot will shift 0.25 meters to the right to take it.
 3. Click the `Generate Data` button on the [Camera Manager](Assets/CameraManager.cs "CameraManager.cs") component.
-4. After a few seconds, in the root of your project, you can find the data in `Camera-Data/{name}` where `{name}` is the name of the [Camera Manager](Assets/CameraManager.cs "CameraManager.cs") component's GameObject.
+4. After a few seconds, in the root of your project, you can find the data in `Camera-Data/{scene}/{camera}` where `{scene}` is the name of the currently loaded scene and `{camera}` is the name of the [Camera Manager](Assets/CameraManager.cs "CameraManager.cs") component's GameObject. This will open automatically.
 
 # Data
 

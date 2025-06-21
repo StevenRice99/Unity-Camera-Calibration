@@ -1,14 +1,16 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
 using Unity.Mathematics;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using Debug = UnityEngine.Debug;
 #if UNITY_EDITOR
 using NaughtyAttributes;
 using UnityEditor;
-using UnityEngine;
 #endif
-
 /// <summary>
 /// Manage a camera to extract information.
 /// </summary>
@@ -29,7 +31,7 @@ public class CameraManager : MonoBehaviour
     [Min(1)]
     [SerializeField]
     private int width = 1920;
-        
+    
     /// <summary>
     /// The height of the camera in pixels.
     /// </summary>
@@ -39,17 +41,17 @@ public class CameraManager : MonoBehaviour
     [Min(1)]
     [SerializeField]
     private int height = 1080;
-        
+    
     /// <summary>
-    /// The offset between left and right cameras.
+    /// The offset between left and right cameras in meters.
     /// </summary>
 #if UNITY_EDITOR
-    [Tooltip("The offset between left and right cameras.")]
+    [Tooltip("The offset between left and right cameras in meters.")]
 #endif
     [Min(float.Epsilon)]
     [SerializeField]
     private float offset = 0.25f;
-        
+    
     /// <summary>
     /// The camera this is controlling.
     /// </summary>
@@ -66,7 +68,17 @@ public class CameraManager : MonoBehaviour
     public int Width
     {
         get => width;
-        set => width = Mathf.Max(1, value);
+        set
+        {
+            value = Mathf.Max(1, value);
+            if (value == width)
+            {
+                return;
+            }
+            
+            width = value;
+            Scale();
+        }
     }
     
     /// <summary>
@@ -75,16 +87,310 @@ public class CameraManager : MonoBehaviour
     public int Height
     {
         get => height;
-        set => height = Mathf.Max(1, value);
+        set
+        {
+            value = Mathf.Max(1, value);
+            if (value == height)
+            {
+                return;
+            }
+            
+            height = value;
+            Scale();
+        }
     }
     
     /// <summary>
-    /// The offset between left and right cameras.
+    /// The width and height of the camera in pixels.
+    /// </summary>
+    public int2 Size
+    {
+        get => new(width, height);
+        set
+        {
+            value = new(Mathf.Max(1, value.x), Mathf.Max(1, value.y));
+            if (value.x == width && value.y == height)
+            {
+                return;
+            }
+            
+            width = value.x;
+            height = value.y;
+            Scale();
+        }
+    }
+    
+    /// <summary>
+    /// The offset between left and right cameras in meters.
     /// </summary>
     public float Offset
     {
         get => offset;
         set => offset = Mathf.Max(float.Epsilon, value);
+    }
+    
+    /// <summary>
+    /// The vertical field of view of the Camera, in degrees.
+    /// </summary>
+    public float FieldOfView
+    {
+        get
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return float.Epsilon;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            return cam.fieldOfView;
+        }
+        set
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            cam.fieldOfView = Mathf.Clamp(value, float.Epsilon, 179);
+        }
+    }
+    
+    /// <summary>
+    /// The size of the camera sensor, expressed in millimeters.
+    /// </summary>
+    public Vector2 SensorSize
+    {
+        get
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return new(0.1f, 0.1f);
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            return cam.sensorSize;
+        }
+        set
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            cam.sensorSize = new(Mathf.Max(value.x, 0.1f), Mathf.Max(value.y, 0.1f));
+        }
+    }
+    
+    /// <summary>
+    /// The X size of the camera sensor, expressed in millimeters.
+    /// </summary>
+    public float SensorSizeX
+    {
+        get
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return 0.1f;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            return cam.sensorSize.x;
+        }
+        set
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            cam.sensorSize = new(Mathf.Max(value, 0.1f), cam.sensorSize.y);
+        }
+    }
+    
+    /// <summary>
+    /// The Y size of the camera sensor, expressed in millimeters.
+    /// </summary>
+    public float SensorSizeY
+    {
+        get
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return 0.1f;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            return cam.sensorSize.y;
+        }
+        set
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            cam.sensorSize = new(cam.sensorSize.x, Mathf.Max(value, 0.1f));
+        }
+    }
+    
+    /// <summary>
+    /// The camera focal length, expressed in millimeters.
+    /// </summary>
+    public float FocalLength
+    {
+        get
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return 0.1047227f;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            return cam.focalLength;
+        }
+        set
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            cam.focalLength = Mathf.Max(value, 0.1047227f);
+        }
+    }
+    
+    /// <summary>
+    /// The lens offset of the camera. The lens shift is relative to the sensor size. For example, a lens shift of 0.5 offsets the sensor by half its horizontal size.
+    /// </summary>
+    public Vector2 LensShift
+    {
+        get
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return Vector2.zero;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            return cam.lensShift;
+        }
+        set
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            cam.lensShift = value;
+        }
+    }
+    
+    /// <summary>
+    /// The X lens offset of the camera. The lens shift is relative to the sensor size. For example, a lens shift of 0.5 offsets the sensor by half its horizontal size.
+    /// </summary>
+    public float LensShiftX
+    {
+        get
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return 0;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            return cam.lensShift.x;
+        }
+        set
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            cam.sensorSize = new(value, cam.sensorSize.y);
+        }
+    }
+    
+    /// <summary>
+    /// The Y lens offset of the camera. The lens shift is relative to the sensor size. For example, a lens shift of 0.5 offsets the sensor by half its horizontal size.
+    /// </summary>
+    public float LensShiftY
+    {
+        get
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return 0;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            return cam.lensShift.y;
+        }
+        set
+        {
+#if UNITY_EDITOR
+            if (!GetCamera())
+            {
+                return;
+            }
+#else
+            GetCamera();
+#endif
+            ConfigureCamera();
+            cam.sensorSize = new(cam.sensorSize.x, value);
+        }
     }
     
     /// <summary>
@@ -102,26 +408,17 @@ public class CameraManager : MonoBehaviour
     /// </summary>
     private void Update()
     {
-        if (cam == null || cam.gameObject != gameObject)
-        {
-            cam = GetComponent<Camera>();
-            if (cam == null)
-            {
+        
 #if UNITY_EDITOR
-                if (!Application.isPlaying)
-                {
-                    return;
-                }
-#endif
-                cam = gameObject.AddComponent<Camera>();
-            }
-        }
-#if UNITY_EDITOR
-        else if (EditorUtility.IsDirty(cam))
+        if (!GetCamera())
         {
-            ConfigureCamera();
+            return;
         }
+#else
+        GetCamera();
 #endif
+        ConfigureCamera();
+        
         // Nothing to do if the screen size has changed.
         if (Screen.width != _previousWidth || Screen.height != _previousHeight)
         {
@@ -139,7 +436,7 @@ public class CameraManager : MonoBehaviour
         _previousHeight = Screen.height;
         
         // Get the relative scale to render at.
-        float scaleHeight = (float)_previousWidth / _previousHeight / ((float) Mathf.Max(width, 1) / Mathf.Max(height, 1));
+        float scaleHeight = (float)_previousWidth / _previousHeight / ((float) width / height);
         
         // Set the camera accordingly.
         Rect rect = cam.rect;
@@ -167,25 +464,57 @@ public class CameraManager : MonoBehaviour
     /// </summary>
     private void OnValidate()
     {
-        if (cam == null || cam.gameObject != gameObject)
+        width = Mathf.Max(width, 1);
+        height = Mathf.Max(height, 1);
+        if (GetCamera())
         {
-            cam = GetComponent<Camera>();
-            if (cam == null)
-            {
-#if UNITY_EDITOR
-                if (!Application.isPlaying)
-                {
-                    return;
-                }
-#endif
-                cam = gameObject.AddComponent<Camera>();
-            }
+            Scale();
         }
-        
-        ConfigureCamera();
-        Scale();
     }
 #endif
+#if UNITY_EDITOR
+    /// <summary>
+    /// Get the camera.
+    /// </summary>
+    /// <returns>True if we got the camera, false otherwise.</returns>
+    private bool GetCamera()
+#else
+    /// <summary>
+    /// Get the camera.
+    /// </summary>
+    private void GetCamera()
+#endif
+    {
+        if (cam != null && cam.gameObject == gameObject)
+        {
+#if UNITY_EDITOR
+            return true;
+#else
+            return;
+#endif
+        }
+        
+        cam = GetComponent<Camera>();
+        if (cam != null)
+        {
+#if UNITY_EDITOR
+            return true;
+#else
+            return;
+#endif
+        }
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            return false;
+        }
+#endif
+        cam = gameObject.AddComponent<Camera>();
+#if UNITY_EDITOR
+        return true;
+#endif
+    }
+    
     /// <summary>
     /// Validate the camera.
     /// </summary>
@@ -204,6 +533,22 @@ public class CameraManager : MonoBehaviour
 #endif
     public void GenerateData()
     {
+#if UNITY_EDITOR
+        if (!GetCamera())
+        {
+            Debug.LogError($"No camera attached to \"{name}\" to generate data.", this);
+            return;
+        }
+        
+        Scene scene = SceneManager.GetActiveScene();
+        if (!scene.IsValid())
+        {
+            Debug.LogError($"Not in a scene so cannot generate data from \"{name}\".", this);
+            return;
+        }
+#else
+        Scene scene = SceneManager.GetActiveScene();
+#endif
         // Ensure the camera is configured.
         ConfigureCamera();
         
@@ -232,6 +577,12 @@ public class CameraManager : MonoBehaviour
             Directory.CreateDirectory(root);
         }
         
+        root = Path.Combine(root, scene.name);
+        if (!Directory.Exists(root))
+        {
+            Directory.CreateDirectory(root);
+        }
+        
         root = Path.Combine(root, name);
         if (!Directory.Exists(root))
         {
@@ -245,17 +596,9 @@ public class CameraManager : MonoBehaviour
         File.WriteAllText(Path.Combine(root, "Principal-Point-Y.txt"), principalPointY.ToString(CultureInfo.InvariantCulture));
         File.WriteAllText(Path.Combine(root, "Intrinsic-Matrix.txt"), $"{focalLengthX} {0} {principalPointX}\n{0} {focalLengthY} {principalPointY}\n0 0 1");
         
-        // Handle if the offset is as small as possible.
-        float[] offsets;
-        if (offset <= float.Epsilon)
-        {
-            offsets = new[] { -float.Epsilon, float.Epsilon };
-        }
-        else
-        {
-            float half = offset / 2;
-            offsets = new[] { -half, half };
-        }
+        // Handle creating the offsets for the left and right cameras.
+        float half = Mathf.Max(offset, float.Epsilon * 2) / 2;
+        float[] offsets = { -half, half };
         
         // Cache the original position so we can restore it after
         Transform t = transform;
@@ -265,7 +608,7 @@ public class CameraManager : MonoBehaviour
         RaycastHit[] hit = new RaycastHit[1];
         
         // Perform for the left and right camera, if we have both.
-        for (int i = 0; i < offsets.Length; i++)
+        for (int i = 0; i < 2; i++)
         {
             // Apply the offset.
             t.position = new(p.x + offsets[i], p.y, p.z);
@@ -372,6 +715,33 @@ public class CameraManager : MonoBehaviour
         
         // Restore the original position.
         t.position = p;
+        
+        root = root.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+#if UNITY_EDITOR
+        Debug.Log($"Data generated to \"{root}\".", this);
+        EditorUtility.ClearDirty(gameObject);
+#endif
+        switch (Application.platform)
+        {
+#if UNITY_EDITOR
+            case RuntimePlatform.WindowsEditor:
+#endif
+            case RuntimePlatform.WindowsPlayer:
+                Process.Start(root);
+                return;
+#if UNITY_EDITOR
+            case RuntimePlatform.OSXEditor:
+#endif
+            case RuntimePlatform.OSXPlayer:
+                Process.Start("open", root);
+                return;
+#if UNITY_EDITOR
+            case RuntimePlatform.LinuxEditor:
+#endif
+            case RuntimePlatform.LinuxPlayer:
+                Process.Start("xdg-open", root);
+                return;
+        }
     }
     
     /// <summary>
