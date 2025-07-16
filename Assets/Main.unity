@@ -274,9 +274,9 @@ Camera:
   m_LensShift: {x: 0, y: 0}
   m_NormalizedViewPortRect:
     serializedVersion: 2
-    x: 0.12860084
+    x: 0.27792916
     y: 0
-    width: 0.7427983
+    width: 0.4441417
     height: 1
   near clip plane: 0.3
   far clip plane: 1000
@@ -307,7 +307,7 @@ Transform:
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: -10}
+  m_LocalPosition: {x: 0, y: 1, z: -9}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -369,8 +369,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a6172a4b8152e06418713680b489bcda, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  width: 1920
-  height: 1080
+  width: 200
+  height: 200
   offset: 0.25
   cam: {fileID: 330585545}
 --- !u!1 &353405957
