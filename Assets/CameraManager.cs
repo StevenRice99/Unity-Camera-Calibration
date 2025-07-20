@@ -581,7 +581,6 @@ public class CameraManager : MonoBehaviour
         double focalLengthY = focalLength * (height / sensorSize.y);
         double principalPointX = (0.5 + lensShift.x) * width;
         double principalPointY = (0.5 + lensShift.y) * height;
-        
 #if UNITY_EDITOR || !UNITY_WEBGL
         // The root path for saving.
         string dataRootPath = Path.Combine(scene.name, name);
@@ -592,17 +591,17 @@ public class CameraManager : MonoBehaviour
         {
             // Write camera intrinsic values.
 #if !UNITY_EDITOR && UNITY_WEBGL
-            writeFileAction("Focal-Length-X.txt", Encoding.UTF8.GetBytes(focalLengthX.ToString(CultureInfo.InvariantCulture)));
-            writeFileAction("Focal-Length-Y.txt", Encoding.UTF8.GetBytes(focalLengthY.ToString(CultureInfo.InvariantCulture)));
-            writeFileAction("Principal-Point-X.txt", Encoding.UTF8.GetBytes(principalPointX.ToString(CultureInfo.InvariantCulture)));
-            writeFileAction("Principal-Point-Y.txt", Encoding.UTF8.GetBytes(principalPointY.ToString(CultureInfo.InvariantCulture)));
-            writeFileAction("Intrinsic-Matrix.txt", Encoding.UTF8.GetBytes($"{focalLengthX} {0} {principalPointX}\n{0} {focalLengthY} {principalPointY}\n0 0 1"));
+            writeFileAction($"{name}-Focal-Length-X.txt", Encoding.UTF8.GetBytes(focalLengthX.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction($"{name}-Focal-Length-Y.txt", Encoding.UTF8.GetBytes(focalLengthY.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction($"{name}-Principal-Point-X.txt", Encoding.UTF8.GetBytes(principalPointX.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction($"{name}-Principal-Point-Y.txt", Encoding.UTF8.GetBytes(principalPointY.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction($"{name}-Intrinsic-Matrix.txt", Encoding.UTF8.GetBytes($"{focalLengthX} {0} {principalPointX}\n{0} {focalLengthY} {principalPointY}\n0 0 1"));
 #else
-            writeFileAction(Path.Combine(dataRootPath, "Focal-Length-X.txt"), Encoding.UTF8.GetBytes(focalLengthX.ToString(CultureInfo.InvariantCulture)));
-            writeFileAction(Path.Combine(dataRootPath, "Focal-Length-Y.txt"), Encoding.UTF8.GetBytes(focalLengthY.ToString(CultureInfo.InvariantCulture)));
-            writeFileAction(Path.Combine(dataRootPath, "Principal-Point-X.txt"), Encoding.UTF8.GetBytes(principalPointX.ToString(CultureInfo.InvariantCulture)));
-            writeFileAction(Path.Combine(dataRootPath, "Principal-Point-Y.txt"), Encoding.UTF8.GetBytes(principalPointY.ToString(CultureInfo.InvariantCulture)));
-            writeFileAction(Path.Combine(dataRootPath, "Intrinsic-Matrix.txt"), Encoding.UTF8.GetBytes($"{focalLengthX} {0} {principalPointX}\n{0} {focalLengthY} {principalPointY}\n0 0 1"));
+            writeFileAction(Path.Combine(dataRootPath, $"{name}-Focal-Length-X.txt"), Encoding.UTF8.GetBytes(focalLengthX.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction(Path.Combine(dataRootPath, $"{name}-Focal-Length-Y.txt"), Encoding.UTF8.GetBytes(focalLengthY.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction(Path.Combine(dataRootPath, $"{name}-Principal-Point-X.txt"), Encoding.UTF8.GetBytes(principalPointX.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction(Path.Combine(dataRootPath, $"{name}-Principal-Point-Y.txt"), Encoding.UTF8.GetBytes(principalPointY.ToString(CultureInfo.InvariantCulture)));
+            writeFileAction(Path.Combine(dataRootPath, $"{name}-Intrinsic-Matrix.txt"), Encoding.UTF8.GetBytes($"{focalLengthX} {0} {principalPointX}\n{0} {focalLengthY} {principalPointY}\n0 0 1"));
 #endif
             // Handle creating the offsets for the left and right cameras.
             float half = Mathf.Max(offset, float.Epsilon * 2) / 2;
@@ -612,114 +611,110 @@ public class CameraManager : MonoBehaviour
             Transform t = transform;
             Vector3 p = t.position;
             
+            // Store the original camera rectangle.
+            Rect originalRect = cam.rect;
+            
+            // Set to full size for the screenshots.
+            cam.rect = new(0, 0, 1, 1);
+            
             // Cache the raycast.
             RaycastHit[] hit = new RaycastHit[1];
             
-            // Perform for the left and right camera, if we have both.
+            // Create a render texture to render the camera's view into.
+            RenderTexture renderTexture = new(width, height, 24);
+            cam.targetTexture = renderTexture;
+            RenderTexture.active = renderTexture;
+            
+            // Create a texture to hold the screenshot.
+            Texture2D screenshot = new(width, height, TextureFormat.RGB24, false);
+            
+            // Perform for the left and right camera
             for (int i = 0; i < 2; i++)
             {
                 // Apply the offset.
                 t.position = new(p.x + offsets[i], p.y, p.z);
                 
-                // Store the original camera rectangle and set it to full screen for the screenshot.
-                Rect originalRect = cam.rect;
-                cam.rect = new(0, 0, 1, 1);
-                
-                // Create a render texture to render the camera's view into.
-                RenderTexture renderTexture = new(width, height, 24);
-                cam.targetTexture = renderTexture;
-                
-                // Create a texture to hold the screenshot.
-                Texture2D screenshot = new(width, height, TextureFormat.RGB24, false);
-                
                 // Render the camera's view.
                 cam.Render();
                 
-                // If this is the left camera, get calibration data.
-                bool left = i == 0;
-                if (left)
+                // Store all hit coordinates.
+                List<Coordinate> coordinates = new();
+                for (int y = 0; y < height; y++)
                 {
-                    // Store all hit coordinates.
-                    List<Coordinate> coordinates = new();
-                    for (int y = 0; y < height; y++)
+                    for (int x = 0; x < width; x++)
                     {
-                        for (int x = 0; x < width; x++)
+                        Ray ray = cam.ScreenPointToRay(new(x, y, 0));
+                        if (Physics.RaycastNonAlloc(ray, hit) > 0)
                         {
-                            Ray ray = cam.ScreenPointToRay(new(x, y, 0));
-                            if (Physics.RaycastNonAlloc(ray, hit) > 0)
-                            {
-                                coordinates.Add(new(t.InverseTransformPoint(hit[0].point), new(x, y)));
-                            }
+                            coordinates.Add(new(t.InverseTransformPoint(hit[0].point), new(x, y)));
                         }
                     }
-                    
-                    StringBuilder world = new();
-                    StringBuilder pixels = new();
-                    for (int j = 0; j < coordinates.Count; j++)
-                    {
-                        if (j > 0)
-                        {
-                            world.Append("\n");
-                            pixels.Append("\n");
-                        }
-                        
-                        world.Append(coordinates[j].WorldString());
-                        pixels.Append(coordinates[j].PixelsString());
-                    }
-                    
-                    // Save them.
-#if !UNITY_EDITOR && UNITY_WEBGL
-                    writeFileAction("Calibration-3D.txt", Encoding.UTF8.GetBytes(world.ToString()));
-                    writeFileAction("Calibration-2D.txt", Encoding.UTF8.GetBytes(pixels.ToString()));
-#else
-                    writeFileAction(Path.Combine(dataRootPath, "Calibration-3D.txt"), Encoding.UTF8.GetBytes(world.ToString()));
-                    writeFileAction(Path.Combine(dataRootPath, "Calibration-2D.txt"), Encoding.UTF8.GetBytes(pixels.ToString()));
-#endif
                 }
                 
-                RenderTexture.active = renderTexture;
+                // Capture the screenshot.
                 screenshot.ReadPixels(new(0, 0, width, height), 0, 0);
                 screenshot.Apply();
                 
-                cam.targetTexture = null;
-                cam.rect = originalRect;
-                RenderTexture.active = null;
-
-#if UNITY_EDITOR
-                if (Application.isPlaying)
+                // Format the coordinates.
+                StringBuilder world = new();
+                StringBuilder pixels = new();
+                StringBuilder colors = new();
+                for (int j = 0; j < coordinates.Count; j++)
                 {
-                    Destroy(renderTexture);
+                    if (j > 0)
+                    {
+                        world.Append("\n");
+                        pixels.Append("\n");
+                        colors.Append("\n");
+                    }
+                    
+                    world.Append(coordinates[j].WorldString());
+                    pixels.Append(coordinates[j].PixelsString());
+                    
+                    // Get the color values for this pixel.
+                    int2 point = coordinates[j].Pixels;
+                    Color color = screenshot.GetPixel(point.x, point.y);
+                    colors.Append($"{color.r} {color.g} {color.b}");
                 }
-                else
-                {
-                    DestroyImmediate(renderTexture);
-                }
-#else
-                Destroy(renderTexture);
-#endif
-                byte[] bytes = screenshot.EncodeToPNG();
-#if UNITY_EDITOR
-                if (Application.isPlaying)
-                {
-                    Destroy(screenshot);
-                }
-                else
-                {
-                    DestroyImmediate(screenshot);
-                }
-#else
-                Destroy(screenshot);
-#endif
-                string side = left ? "Left" : "Right";
+                
+                // Save coordinates.
+                string side = i == 0 ? "Left" : "Right";
 #if !UNITY_EDITOR && UNITY_WEBGL
-                writeFileAction($"{side}.png", bytes);
+                writeFileAction($"{name}-{side}-3D.txt", Encoding.UTF8.GetBytes(world.ToString()));
+                writeFileAction($"{name}-{side}-2D.txt", Encoding.UTF8.GetBytes(pixels.ToString()));
+                writeFileAction($"{name}-{side}-Color.txt", Encoding.UTF8.GetBytes(colors.ToString()));
 #else
-                writeFileAction(Path.Combine(dataRootPath, $"{side}.png"), bytes);
+                writeFileAction(Path.Combine(dataRootPath, $"{name}-{side}-3D.txt"), Encoding.UTF8.GetBytes(world.ToString()));
+                writeFileAction(Path.Combine(dataRootPath, $"{name}-{side}-2D.txt"), Encoding.UTF8.GetBytes(pixels.ToString()));
+                writeFileAction(Path.Combine(dataRootPath, $"{name}-{side}-Color.txt"), Encoding.UTF8.GetBytes(colors.ToString()));
+#endif
+#if !UNITY_EDITOR && UNITY_WEBGL
+                writeFileAction($"{name}-{side}.png", screenshot.EncodeToPNG());
+#else
+                writeFileAction(Path.Combine(dataRootPath, $"{name}-{side}.png"), screenshot.EncodeToPNG());
 #endif
             }
             
-            // Restore the original position.
+            // Restore the original position and clear rendering values.
             t.position = p;
+            cam.targetTexture = null;
+            cam.rect = originalRect;
+            RenderTexture.active = null;
+#if UNITY_EDITOR
+            if (Application.isPlaying)
+            {
+                Destroy(screenshot);
+                Destroy(renderTexture);
+            }
+            else
+            {
+                DestroyImmediate(screenshot);
+                DestroyImmediate(renderTexture);
+            }
+#else
+            Destroy(screenshot);
+            Destroy(renderTexture);
+#endif
         }
 #if !UNITY_EDITOR && UNITY_WEBGL 
         // Create a zip file in memory and trigger a download.
@@ -959,7 +954,7 @@ public class CameraManager : MonoBehaviour
         /// <summary>
         /// The pixel coordinates.
         /// </summary>
-        private readonly int2 _pixels;
+        public readonly int2 Pixels;
         
         /// <summary>
         /// Configure this coordinate.
@@ -969,7 +964,7 @@ public class CameraManager : MonoBehaviour
         public Coordinate(Vector3 world, int2 pixels)
         {
             _world = world;
-            _pixels = pixels;
+            Pixels = pixels;
         }
         
         /// <summary>
@@ -987,7 +982,7 @@ public class CameraManager : MonoBehaviour
         /// <returns>The pixels string.</returns>
         public string PixelsString()
         {
-            return $"{_pixels.x} {_pixels.y}";
+            return $"{Pixels.x} {Pixels.y}";
         }
         
         /// <summary>

@@ -34,15 +34,13 @@ First, install [Unity](https://unity.com "Unity"). Then, either clone this proje
 
 # Data
 
-The generated data produces the following files:
+The generated data produces the following files where `{name}` is the name of the camera:
 
-- `Left.png` - The screenshot from the left camera.
-- `Right.png` - The screenshot from the right camera.
-- `Calibration-2D.txt` - 2D pixel coordinates that correspond to matched world points from `Calibration-3D.txt`.
-    - These are from the left camera.
-- `Calibration-2D.txt` - 3D world coordinates that correspond to matched pixel points from `Calibration-2D.txt`.
-    - These are from the left camera.
-    - These are calculated with the left camera as the origin of the world.
+- `{name}-Left.png` and `{name}-Right.png` - The screenshots from the cameras.
+- `{name}-Left-2D.txt` and `{name}-Right-2D.txt` - 2D pixel coordinates that correspond to matched world points from `{name}-Left-3D.txt` and `{name}-Right-3D.txt`.
+- `{name}-Left-3D.txt` and `{name}-Right-3D.txt` - 3D world coordinates that correspond to matched pixel points from `{name}-Left-2D.txt` and `{name}-Right-2D.txt`.
+    - These are calculated relative to each given camera.
+- `{name}-Left-Color.txt` and `{name}-Right-Color.txt` - Color values in (R, G, B) that correspond to matched pixel points from `{name}-Left-2D.txt` and `{name}-Right-2D.txt`.
 - `Focal-Length-X.txt` - The X focal length in pixels for matrix calculations.
 - `Focal-Length-Y.txt` - The Y focal length in pixels for matrix calculations.
 - `Principal-Point-X.txt` - The X principal point in pixels for matrix calculations.
