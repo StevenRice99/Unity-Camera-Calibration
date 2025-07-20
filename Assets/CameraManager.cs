@@ -617,9 +617,6 @@ public class CameraManager : MonoBehaviour
             // Set to full size for the screenshots.
             cam.rect = new(0, 0, 1, 1);
             
-            // Cache the raycast.
-            RaycastHit[] hit = new RaycastHit[1];
-            
             // Create a render texture to render the camera's view into.
             RenderTexture renderTexture = new(width, height, 24);
             cam.targetTexture = renderTexture;
@@ -643,10 +640,9 @@ public class CameraManager : MonoBehaviour
                 {
                     for (int x = 0; x < width; x++)
                     {
-                        Ray ray = cam.ScreenPointToRay(new(x, y, 0));
-                        if (Physics.RaycastNonAlloc(ray, hit) > 0)
+                        if (Physics.Raycast(cam.ScreenPointToRay(new(x, y, 0)), out RaycastHit hit))
                         {
-                            coordinates.Add(new(t.InverseTransformPoint(hit[0].point), new(x, y)));
+                            coordinates.Add(new(t.InverseTransformPoint(hit.point), new(x, y)));
                         }
                     }
                 }
