@@ -596,12 +596,14 @@ public class CameraManager : MonoBehaviour
             writeFileAction($"{name}-Principal-Point-X.txt", Encoding.UTF8.GetBytes(principalPointX.ToString(CultureInfo.InvariantCulture)));
             writeFileAction($"{name}-Principal-Point-Y.txt", Encoding.UTF8.GetBytes(principalPointY.ToString(CultureInfo.InvariantCulture)));
             writeFileAction($"{name}-Intrinsic-Matrix.txt", Encoding.UTF8.GetBytes($"{focalLengthX} {0} {principalPointX}\n{0} {focalLengthY} {principalPointY}\n0 0 1"));
+            writeFileAction($"{name}-Offset.txt", Encoding.UTF8.GetBytes(offset.ToString(CultureInfo.InvariantCulture)));
 #else
             writeFileAction(Path.Combine(dataRootPath, $"{name}-Focal-Length-X.txt"), Encoding.UTF8.GetBytes(focalLengthX.ToString(CultureInfo.InvariantCulture)));
             writeFileAction(Path.Combine(dataRootPath, $"{name}-Focal-Length-Y.txt"), Encoding.UTF8.GetBytes(focalLengthY.ToString(CultureInfo.InvariantCulture)));
             writeFileAction(Path.Combine(dataRootPath, $"{name}-Principal-Point-X.txt"), Encoding.UTF8.GetBytes(principalPointX.ToString(CultureInfo.InvariantCulture)));
             writeFileAction(Path.Combine(dataRootPath, $"{name}-Principal-Point-Y.txt"), Encoding.UTF8.GetBytes(principalPointY.ToString(CultureInfo.InvariantCulture)));
             writeFileAction(Path.Combine(dataRootPath, $"{name}-Intrinsic-Matrix.txt"), Encoding.UTF8.GetBytes($"{focalLengthX} {0} {principalPointX}\n{0} {focalLengthY} {principalPointY}\n0 0 1"));
+            writeFileAction(Path.Combine(dataRootPath, $"{name}-Offset.txt"), Encoding.UTF8.GetBytes(offset.ToString(CultureInfo.InvariantCulture)));
 #endif
             // Handle creating the offsets for the left and right cameras.
             float half = Mathf.Max(offset, float.Epsilon * 2) / 2;
