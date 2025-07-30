@@ -38,14 +38,18 @@ The generated data produces the following files where `{name}` is the name of th
 
 - `{name}-Left.png` and `{name}-Right.png` - The screenshots from the cameras.
 - `{name}-Left-2D.txt` and `{name}-Right-2D.txt` - 2D pixel coordinates that correspond to matched world points from `{name}-Left-3D.txt` and `{name}-Right-3D.txt`.
+    - In the form of `X Y` on each line. 
 - `{name}-Left-3D.txt` and `{name}-Right-3D.txt` - 3D world coordinates that correspond to matched pixel points from `{name}-Left-2D.txt` and `{name}-Right-2D.txt`.
+    - In the form of `X Y Z` on each line.
     - These are calculated relative to each given camera.
-- `{name}-Left-Color.txt` and `{name}-Right-Color.txt` - Color values in (R, G, B) that correspond to matched pixel points from `{name}-Left-2D.txt` and `{name}-Right-2D.txt`.
-- `Focal-Length-X.txt` - The X focal length in pixels for matrix calculations.
-- `Focal-Length-Y.txt` - The Y focal length in pixels for matrix calculations.
-- `Principal-Point-X.txt` - The X principal point in pixels for matrix calculations.
-- `Principal-Point-Y.txt` - The Y principal point in pixels for matrix calculations.
-- `Intrinsic-Matrix.txt` - The intrinsic matrix of the cameras.
+- `{name}-Left-Color.txt` and `{name}-Right-Color.txt` - Color values that correspond to matched pixel points from `{name}-Left-2D.txt` and `{name}-Right-2D.txt`.
+    - In the form of `R G B` on each line.
+- `{name}-Focal-Length-X.txt` - The X focal length in pixels for matrix calculations.
+- `{name}-Focal-Length-Y.txt` - The Y focal length in pixels for matrix calculations.
+- `{name}-Principal-Point-X.txt` - The X principal point in pixels for matrix calculations.
+- `{name}-Principal-Point-Y.txt` - The Y principal point in pixels for matrix calculations.
+- `{name}-Intrinsic-Matrix.txt` - The intrinsic matrix of the cameras.
+- `{name}-Offset.txt` - The horizontal offset in meters between the two cameras.
 
 # Textures
 
